@@ -4,7 +4,11 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var cors = require("cors");
+const jwt = require('jsonwebtoken');
+const bodyParser = require('body-parser');
 
+
+var authenticateJWT = require('./jwt_auth');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
@@ -14,6 +18,7 @@ var app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
+app.use(bodyParser.json());
 app.use(logger('dev'));
 app.use(cors());
 app.use(express.json());
@@ -25,9 +30,9 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  next(createError(404));
-});
+// app.use(function(req, res, next) {
+//   next(createError(404));
+// });
 
 // error handler
 app.use(function(err, req, res, next) {
@@ -38,6 +43,44 @@ app.use(function(err, req, res, next) {
   // render the error page
   res.status(err.status || 500);
   res.render('error');
+});
+
+// test
+const users = [
+  {
+      username: 'john',
+      password: 'password123admin',
+      role: 'admin'
+  }, {
+      username: 'anna',
+      password: 'password123member',
+      role: 'member'
+  }
+];
+
+const accessTokenSecret = 'youraccesstokensecret';
+
+app.post('/login', (req, res) => {
+  // Read username and password from request body
+  const { username, password } = req.body;
+
+  // Filter user from the users array by username and password
+  const user = users.find(u => { return u.username === username && u.password === password });
+
+  if (user) {
+      // Generate an access token
+      const accessToken = jwt.sign({ username: user.username,  role: user.role }, accessTokenSecret);
+
+      res.json({
+          accessToken
+      });
+  } else {
+      res.send('Username or password incorrect');
+  }
+});
+
+app.get('/books', authenticateJWT, (req, res) => {
+  res.json(users);
 });
 
 module.exports = app;
